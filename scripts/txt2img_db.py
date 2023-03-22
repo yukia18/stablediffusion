@@ -210,15 +210,6 @@ def main(opt):
     seed_everything(opt.seed)
 
     config = OmegaConf.load(f"{opt.config}")
-    device = torch.device("cuda") if opt.device == "cuda" else torch.device("cpu")
-    model = load_model_from_config(config, f"{opt.ckpt}", device)
-
-    if opt.plms:
-        sampler = PLMSSampler(model, device=device)
-    elif opt.dpm:
-        sampler = DPMSolverSampler(model, device=device)
-    else:
-        sampler = DDIMSampler(model, device=device)
 
     metadata = load_metadata(opt.metadata_path, opt.part_id)
 
@@ -231,6 +222,16 @@ def main(opt):
         print("all pngs are already generated.")
         return
     print(f"metadata.shape={metadata.shape}")
+
+    device = torch.device("cuda") if opt.device == "cuda" else torch.device("cpu")
+    model = load_model_from_config(config, f"{opt.ckpt}", device)
+
+    if opt.plms:
+        sampler = PLMSSampler(model, device=device)
+    elif opt.dpm:
+        sampler = DPMSolverSampler(model, device=device)
+    else:
+        sampler = DDIMSampler(model, device=device)
 
     print("Creating invisible watermark encoder (see https://github.com/ShieldMnt/invisible-watermark)...")
     wm = "SDV2"
