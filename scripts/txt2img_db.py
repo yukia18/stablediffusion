@@ -216,7 +216,7 @@ def main(opt):
     outdir = Path(opt.outdir) / f"part-{opt.part_id:06d}"
     outdir.mkdir(exist_ok=True, parents=True)
 
-    exist_pngs = set(list(outdir.glob("*.png")))
+    exist_pngs = set([path.name for path in outdir.glob("*.png")])
     metadata = metadata[~metadata.image_name.isin(exist_pngs)].reset_index(drop=True)
     if len(metadata) == 0:
         print("all pngs are already generated.")
