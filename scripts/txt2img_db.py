@@ -1,25 +1,23 @@
 import argparse
-from pathlib import Path
-from itertools import islice
 from contextlib import nullcontext
+from itertools import islice
+from pathlib import Path
 
 import cv2
-import torch
 import numpy as np
 import pandas as pd
+import torch
+from einops import rearrange
+from imwatermark import WatermarkEncoder
+from ldm.models.diffusion.ddim import DDIMSampler
+from ldm.models.diffusion.dpm_solver import DPMSolverSampler
+from ldm.models.diffusion.plms import PLMSSampler
+from ldm.util import instantiate_from_config
 from omegaconf import OmegaConf
 from PIL import Image
-from tqdm import tqdm
-from einops import rearrange
 from pytorch_lightning import seed_everything
 from torch import autocast
-from imwatermark import WatermarkEncoder
-
-from ldm.util import instantiate_from_config
-from ldm.models.diffusion.ddim import DDIMSampler
-from ldm.models.diffusion.plms import PLMSSampler
-from ldm.models.diffusion.dpm_solver import DPMSolverSampler
-
+from tqdm import tqdm
 
 torch.set_grad_enabled(False)
 
@@ -58,11 +56,7 @@ def load_model_from_config(config, ckpt, device=torch.device("cuda"), verbose=Fa
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--outdir",
-        type=str,
-        nargs="?",
-        help="dir to write results to",
-        default="outputs/images"
+        "--outdir", type=str, nargs="?", help="dir to write results to", default="outputs/images"
     )
     parser.add_argument(
         "--steps",
@@ -72,12 +66,12 @@ def parse_args():
     )
     parser.add_argument(
         "--plms",
-        action='store_true',
+        action="store_true",
         help="use plms sampling",
     )
     parser.add_argument(
         "--dpm",
-        action='store_true',
+        action="store_true",
         help="use DPM (2) sampler",
     )
     parser.add_argument(
@@ -144,18 +138,18 @@ def parse_args():
         type=str,
         help="evaluate at this precision",
         choices=["full", "autocast"],
-        default="full"
+        default="full",
     )
     parser.add_argument(
         "--device",
         type=str,
         help="Device on which Stable Diffusion will be run",
         choices=["cpu", "cuda"],
-        default="cuda"
+        default="cuda",
     )
     parser.add_argument(
         "--bf16",
-        action='store_true',
+        action="store_true",
         help="Use bfloat16",
     )
     parser.add_argument(
@@ -186,7 +180,7 @@ def parse_args():
 def put_watermark(img, wm_encoder=None):
     if wm_encoder is not None:
         img = cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
-        img = wm_encoder.encode(img, 'dwtDct')
+        img = wm_encoder.encode(img, "dwtDct")
         img = Image.fromarray(img[:, :, ::-1])
     return img
 
@@ -236,17 +230,17 @@ def main(opt):
     print("Creating invisible watermark encoder (see https://github.com/ShieldMnt/invisible-watermark)...")
     wm = "SDV2"
     wm_encoder = WatermarkEncoder()
-    wm_encoder.set_watermark('bytes', wm.encode('utf-8'))
+    wm_encoder.set_watermark("bytes", wm.encode("utf-8"))
 
-    batch_size = opt.n_samples
-    data = list(chunk(metadata.prompt.to_list(), batch_size))
-    all_names = list(chunk(metadata.image_name.to_list(), batch_size))
+    data = list(chunk(metadata.prompt.to_list(), opt.n_samples))
+    all_names = list(chunk(metadata.image_name.to_list(), opt.n_samples))
 
     start_code = None
 
-    precision_scope = autocast if opt.precision=="autocast" or opt.bf16 else nullcontext
+    precision_scope = autocast if opt.precision == "autocast" or opt.bf16 else nullcontext
     with torch.inference_mode(), precision_scope(opt.device), model.ema_scope():
         for prompts, names in zip(tqdm(data, desc="data"), all_names):
+            batch_size = min(len(prompts), opt.n_samples)
             uc = None
             if opt.scale != 1.0:
                 uc = model.get_learned_conditioning(batch_size * [""])
@@ -257,7 +251,7 @@ def main(opt):
             samples, _ = sampler.sample(
                 S=opt.steps,
                 conditioning=c,
-                batch_size=opt.n_samples,
+                batch_size=batch_size,
                 shape=shape,
                 verbose=False,
                 unconditional_guidance_scale=opt.scale,
@@ -270,7 +264,7 @@ def main(opt):
             x_samples = torch.clamp((x_samples + 1.0) / 2.0, min=0.0, max=1.0)
 
             for x_sample, name in zip(x_samples, names):
-                x_sample = 255. * rearrange(x_sample.cpu().numpy(), 'c h w -> h w c')
+                x_sample = 255.0 * rearrange(x_sample.cpu().numpy(), "c h w -> h w c")
                 x_sample = cv2.resize(x_sample, (opt.W_dest, opt.H_dest), interpolation=cv2.INTER_NEAREST)
                 img = Image.fromarray(x_sample.astype(np.uint8))
                 img = put_watermark(img, wm_encoder)
