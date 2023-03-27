@@ -2,44 +2,44 @@ import concurrent.futures
 import subprocess
 
 import pandas as pd
-
 import torch
-
 
 DIV = 3
 MOD = 1
 
 
 def run(gpu_id, part_id):
-    cmd = " ".join([
-        f"CUDA_VISIBLE_DEVICE={gpu_id}",
-        "python",
-        "scripts/txt2img_db.py",
-        "--ckpt",
-        "stable-diffusion-2/768-v-ema.ckpt",
-        "--config",
-        "configs/stable-diffusion/v2-inference-v.yaml",
-        "--H",
-        "768",
-        "--W",
-        "768",
-        "--precision",
-        "full",
-        "--device",
-        "cuda",
-        "--outdir",
-        "./outputs/images",
-        "--metadata_path",
-        "../input/metadata.parquet",
-        "--part_id",
-        f"{part_id}",
-        "--H_dest",
-        "512",
-        "--W_dest",
-        "512",
-        "--n_samples",
-        "6"
-    ])
+    cmd = " ".join(
+        [
+            f"CUDA_VISIBLE_DEVICE={gpu_id}",
+            "python",
+            "scripts/txt2img_db.py",
+            "--ckpt",
+            "stable-diffusion-2/768-v-ema.ckpt",
+            "--config",
+            "configs/stable-diffusion/v2-inference-v.yaml",
+            "--H",
+            "768",
+            "--W",
+            "768",
+            "--precision",
+            "full",
+            "--device",
+            "cuda",
+            "--outdir",
+            "./outputs/images",
+            "--metadata_path",
+            "../input/metadata.parquet",
+            "--part_id",
+            f"{part_id}",
+            "--H_dest",
+            "512",
+            "--W_dest",
+            "512",
+            "--n_samples",
+            "6",
+        ]
+    )
     print(cmd)
     subprocess.run(cmd, shell=True)
 
