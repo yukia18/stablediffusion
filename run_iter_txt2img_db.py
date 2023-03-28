@@ -51,7 +51,7 @@ def main():
     device_count = torch.cuda.device_count()
 
     metadata = pd.read_parquet("../input/metadata.parquet")
-    part_ids = sorted([pid for pid in metadata.part_id.unique() if pid % DIV == 1])
+    part_ids = sorted([pid for pid in metadata.part_id.unique() if pid % DIV == MOD])
     print(f"len(part_ids)={len(part_ids)}")
 
     while len(part_ids) > 0:
